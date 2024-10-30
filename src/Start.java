@@ -18,9 +18,7 @@ public class Start {
 	private static int maxThreads = 5;
 	private static String proxyFile = "Resources/proxies.txt";
 	
-    public static void main(String[] args) {
-    	args = new String[] { "-s", "littlehigh buy weed", "-c", "10", "--api", "AIzaSyCq3mgIgYPQLwLaR7OULoMgfejs8CzZBrU", "--cx", "e2cfad9eb060a4d28" };
-    	
+    public static void main(String[] args) {    	
     	//allow basic auth for proxies
 		Properties props = System.getProperties();
 		props.setProperty("jdk.http.auth.tunneling.disabledSchemes", "");
