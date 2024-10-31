@@ -25,50 +25,56 @@ public class ShopifyScrapper extends Scrapper {
 	private Set<String> shops = new HashSet<String>();
 	
 	public ShopifyScrapper(String search, String includes,
-			String excludes, String country, int count) throws Exception {
-		this.search = search;
-		this.includes = includes;
-		this.excludes = excludes;
-		this.country = country;
-		//search google for list of urls
-		//save duplicates for purpose of maintaining correct index
-		System.out.println("Getting websites from google");
-		while (google()) {
-			System.out.println("\rProgress: " + urls.size() + "/" + count);
-			if (urls.size() >= count)
-				break;
+			String excludes, String country, int count) {
+		try {
+			this.search = search;
+			this.includes = includes;
+			this.excludes = excludes;
+			this.country = country;
+			//search google for list of urls
+			//save duplicates for purpose of maintaining correct index
+			System.out.println("Getting websites from google");
+			while (google()) {
+				System.out.print("\rProgress: " + urls.size() + "/" + count);
+				if (urls.size() >= count)
+					break;
+			}
+			System.out.println();
+			//multi thread giving to checker
+	        if (urls.size() > 0) {
+	            Set<String> urlSet = new HashSet<>(urls); // Remove duplicates
+	            int totalTasks = urlSet.size();
+	            ExecutorService executor = Executors.newFixedThreadPool(threads);
+
+	            List<Future<Void>> futures = new ArrayList<>();
+	            AtomicInteger completedTasks = new AtomicInteger(0);
+
+	            for (String str : urlSet) {
+	                futures.add(executor.submit(() -> {
+	                    Checker check = new Checker(str);
+	                    if (check.isShopify()) {
+	                        shops.add(check.getLink());
+	                    }
+	                    // Update progress
+	                    int completed = completedTasks.incrementAndGet();
+	                    printProgress(completed, totalTasks);
+	                    return null; // Return type must match Future<Void>
+	                }));
+	            }
+
+	            // Wait for all tasks to complete
+	            for (Future<Void> future : futures) {
+	            	future.get();
+	            }
+
+	            executor.shutdown();
+
+	            System.out.println();
+	        }
 		}
-		//multi thread giving to checker
-        if (urls.size() > 0) {
-            Set<String> urlSet = new HashSet<>(urls); // Remove duplicates
-            int totalTasks = urlSet.size();
-            ExecutorService executor = Executors.newFixedThreadPool(threads);
-
-            List<Future<Void>> futures = new ArrayList<>();
-            AtomicInteger completedTasks = new AtomicInteger(0);
-
-            for (String str : urlSet) {
-                futures.add(executor.submit(() -> {
-                    Checker check = new Checker(str);
-                    if (check.isShopify()) {
-                        shops.add(check.getLink());
-                    }
-                    // Update progress
-                    int completed = completedTasks.incrementAndGet();
-                    printProgress(completed, totalTasks);
-                    return null; // Return type must match Future<Void>
-                }));
-            }
-
-            // Wait for all tasks to complete
-            for (Future<Void> future : futures) {
-            	future.get();
-            }
-
-            executor.shutdown();
-
-            System.out.println();
-        }
+		catch (Exception e ) {
+			e.printStackTrace();
+		}
 	}
 	
     private static void printProgress(int completed, int total) {
@@ -108,6 +114,10 @@ public class ShopifyScrapper extends Scrapper {
 		return shops;
 	}
 	
+	public String getSearch() {
+		return search;
+	}
+	
 	public double getPercent() {
 		return shops.size() / (double)urls.size();
 	}
@@ -137,6 +147,9 @@ public class ShopifyScrapper extends Scrapper {
 				urls.add(formatUrl((String)obj.get("link")));
 			}
 			return true;
+		}
+		else {
+			System.err.println(response.getBody());
 		}
 		return false;
 	}
