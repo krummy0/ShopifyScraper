@@ -1,13 +1,9 @@
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.CookieManager;
 import java.net.CookieStore;
 import java.net.HttpCookie;
-import java.net.InetSocketAddress;
-import java.net.ProxySelector;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
@@ -20,13 +16,9 @@ import java.util.Map;
 import java.util.Random;
 import java.util.stream.Collectors;
 
-import java.util.ArrayList;
-import java.util.Base64;
-
 import org.json.simple.*;
 import org.json.simple.parser.JSONParser;
 
-//TODO Add rotating proxy
 
 public class Scrapper {
     protected CookieManager cookie = new CookieManager();
@@ -35,73 +27,14 @@ public class Scrapper {
     private String userAgent;
     private static String jsonPath = "Resources/UserAgents.json";
     private static JSONArray userAgents;
-    private static List<String[]> proxyList = new ArrayList<String[]>();
-    private static String proxyFileStr;
-    private static char delimiter;
     private static int attempts;
     
     protected Scrapper() {
     	generateUA();
     }
     
-    public static void setProxyFile(String filePath) {
-    	proxyFileStr = filePath;
-    }
-    
-    public static void setDelimiter(char delimiterChar) {
-    	delimiter = delimiterChar;
-    }
-    
     public static void setAttempts(int attemptsInt) {
     	attempts = attemptsInt;
-    }
-    
-    private static String[] getProxy() {
-    	if (proxyList.isEmpty()) {
-    		loadProxies();
-    	}
-    	Random random = new Random();
-    	int randomIndex = random.nextInt(proxyList.size());
-    	String[] tmp = proxyList.get(randomIndex);
-    	return tmp;
-    }
-    
-    private static void loadProxies() {
-    	try {
-        	File f = new File(proxyFileStr);
-            StringBuilder content = new StringBuilder();
-            try (BufferedReader br = new BufferedReader(new FileReader(f))) {
-                String line;
-                while ((line = br.readLine()) != null) {
-                    content.append(line).append("\n");
-                }
-            }
-    	    catch (FileNotFoundException e) {
-    	        System.err.println("Error: File not found - " + f.getAbsolutePath());
-    	        throw e;
-    	    }
-            catch (IOException e) {
-    	        System.err.println("Error: Unable to read the file - " + e.getMessage());
-    	        throw e;
-    	    }
-            
-            String data[] = content.toString().split("\n");
-            
-            for (String str : data) {
-            	try {
-            		String split[] = str.split("\\Q" + delimiter + "\\E");
-            		proxyList.add(split);
-            	}
-            	catch (Exception e) {
-            		System.err.println("Failed to read line of proxies");
-            		e.printStackTrace();
-            	}
-            }
-    	}
-    	catch (Exception e) {
-    		System.err.println("Failed to read proxy File");
-    		e.printStackTrace();
-    	}
     }
     
     protected String getUA() {
@@ -246,28 +179,13 @@ public class Scrapper {
     	//try until attempts run out or it returns a value
     	for (int i = 0; i < attempts; i++) {
     		try {
-    			String proxyInfo[] = getProxy();
-                String proxyHost = proxyInfo[2];
-                int proxyPort = Integer.parseInt(proxyInfo[3]);
-                String username = proxyInfo[0];
-                String password = proxyInfo[1];
-                
-                // Create the proxy selector
-                ProxySelector proxySelector = ProxySelector.of(new InetSocketAddress(proxyHost, proxyPort));
-
-                // Build the HttpClient with the proxy
+                // Build the HttpClient
                 HttpClient client = HttpClient.newBuilder()
-                        .proxy(proxySelector)
                         .build();
 
                 HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                         .uri(new URI(urlString))
                         .method(method, body != null ? HttpRequest.BodyPublishers.ofString(body) : HttpRequest.BodyPublishers.noBody());
-
-                // Add basic authentication for the proxy
-                String auth = username + ":" + password;
-                String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.UTF_8));
-                requestBuilder.header("Proxy-Authorization", "Basic " + encodedAuth);
 
                 // Add custom headers
                 if (headers != null) {
@@ -285,9 +203,6 @@ public class Scrapper {
                 // Convert response body to String if not encoded
                 responseBodyString = new String(response.body(), StandardCharsets.UTF_8);
                 
-                if (response.statusCode() == 407) {
-                	System.err.println("Proxy Authentication Failed");
-                }
                 
             	if ((minChars != 0 && responseBodyString.length() > minChars)
             		|| minChars == 0)
