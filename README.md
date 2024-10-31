@@ -10,3 +10,5 @@ Uses googles api to gather a given number of websites. It then uses multi thread
  - Exact terms search
  - Exclude terms search
  - Specific country search
+ - Multiple queries in one run
+ - Rotate user agent
